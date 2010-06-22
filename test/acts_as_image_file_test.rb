@@ -1,8 +1,6 @@
 require 'test_helper'
 require 'fileutils'
 
-FileUtils.rm_rf '/tmp/acts_as_image_file_tests'
-FileUtils.mkdir_p '/tmp/acts_as_image_file_tests'
 
 class ActsAsImageFileTest < ActiveSupport::TestCase
   load_schema
@@ -21,6 +19,9 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
     Image.delete_all
     Tag.delete_all
     TaggedImage.delete_all
+
+    FileUtils.rm_rf '/tmp/acts_as_image_file_tests'
+    FileUtils.mkdir_p '/tmp/acts_as_image_file_tests'
   end
 
   test "schema loads correctly" do
