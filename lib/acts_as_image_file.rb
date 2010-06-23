@@ -16,7 +16,7 @@ module ActsAsImageFile
     # * Using class variables (@@var) in ClassMethods does not
     #   work.  We have to use "class instance variables" instead when
     #   storing parameters passed to def acts_as_image_file below.
-    #   
+    #  
     # This approach may be wrong or naive.
     #
     # -- DB, Wed Jun 23 10:20:19 EST 2010
@@ -98,7 +98,6 @@ module ActsAsImageFile
         # If image is new or name not set then don't do anything.
 
         def after_save
-          STDERR.puts 'after_destroy'
           return true unless db
           r = self.changes[aaif[:name_field]]
           return true unless r
@@ -111,7 +110,6 @@ module ActsAsImageFile
         # Do nothing.  Up to user if they want to destroy images.
 
         def after_destroy
-          STDERR.puts 'after_destroy'
           #db.delete self.name
         end
 

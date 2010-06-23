@@ -1,0 +1,3 @@
+[submodule "lib/image_db"]
+	path = lib/image_db
+	url = git://github.com/danielbush/ImageDB.git
