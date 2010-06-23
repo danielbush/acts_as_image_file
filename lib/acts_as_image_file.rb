@@ -7,15 +7,31 @@ module ActsAsImageFile
 
   module ClassMethods
 
-    # Access the image db.
+    # Notes:
     # 
-    # Example:
-    #   ar = AR.new
-    #   AR.db.absolute(ar.name,:width => 60)
-    #   AR.db.fetch(ar.name,:width => 60)
+    # * ClassMethods is used to 'extend' our AR class (Image etc...).
+    # * so @db and @aaif are "class instance variables"; they are instance
+    #   variables of the object that is the AR class (not of instances
+    #   of the AR class).
+    # * Using class variables (@@var) in ClassMethods does not
+    #   work.  We have to use "class instance variables" instead when
+    #   storing parameters passed to def acts_as_image_file below.
+    #   
+    # This approach may be wrong or naive.
+    #
+    # -- DB, Wed Jun 23 10:20:19 EST 2010
+
+
+    # Access the image db.
 
     def db
-      @@db
+      @db
+    end
+
+    # Access the parameters given at class creation time.
+
+    def aaif
+      @aaif
     end
 
     # Invoked by the AR class that wants this behaviour.
@@ -32,14 +48,14 @@ module ActsAsImageFile
 
     def acts_as_image_file root , params=nil
 
-      @@acts_as_image_file = params.nil? ? {:name_field => :name} : params
-      @@db = ImageDb::DB.new(root,@@acts_as_image_file[:rel_root])
-      @@db.hooks = @@acts_as_image_file[:hooks]
+      @aaif = params.nil? ? {:name_field => :name} : params
+      @db = ImageDb::DB.new(root,@aaif[:rel_root])
+      @db.hooks = @aaif[:hooks]
 
       # Name field should be unique and not null...
 
-      send :validates_uniqueness_of , @@acts_as_image_file[:name_field]
-      send :validates_presence_of , @@acts_as_image_file[:name_field]
+      send :validates_uniqueness_of , @aaif[:name_field]
+      send :validates_presence_of , @aaif[:name_field]
 
       # Create some instance methods for this AR class:
 
@@ -51,16 +67,30 @@ module ActsAsImageFile
           self.class.db
         end
 
+        # Convenience method to access the parameters
+        # passed to the invocation of acts_as_image_file.
+
+        def aaif
+          self.class.aaif
+        end
+
         # Store an original image...
 
         def store filepath,params=nil
           db.store filepath,params
         end
 
-        # Retrieve url for original image...
+        # Retrieve url for original image (resolve to rel_root)...
 
         def url params=nil
-          db.resolve self.send(@@acts_as_image_file[:name_field]) , params
+          db.fetch self.send(aaif[:name_field]) , params
+        end
+
+        # Retrieve image path...
+
+        def path params=nil
+          db.fetch(self.send(aaif[:name_field]) ,
+                   params.merge(:absolute => true))
         end
 
         # Rename images if name is changed.
@@ -70,7 +100,7 @@ module ActsAsImageFile
         def after_save
           STDERR.puts 'after_destroy'
           return true unless db
-          r = self.changes[@@acts_as_image_file[:name_field]]
+          r = self.changes[aaif[:name_field]]
           return true unless r
           old,new = r
           unless old.nil?
@@ -88,7 +118,7 @@ module ActsAsImageFile
         # Check original image file exists.
 
         def file_exists? params=nil
-          r = db.fetch(self.send(@@acts_as_image_file[:name_field]) , params)
+          r = db.fetch(self.send(aaif[:name_field]) , params)
           r.nil? ? false : true
         end
 
