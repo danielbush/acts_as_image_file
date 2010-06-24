@@ -1,17 +1,26 @@
+$MYDBG=false
 require 'test_helper'
 require 'fileutils'
+require 'find'
 
 
 class ActsAsImageFileTest < ActiveSupport::TestCase
 
   load_schema
 
+  def test_image1
+    File.join(File.expand_path(File.dirname(__FILE__)),
+              '..','lib','image_db','test','test_data',
+              'image-w600-h400-300ppi.jpg')
+  end
+
   class Image < ActiveRecord::Base
-    acts_as_image_file '/tmp/acts_as_image_file_tests/r1'
+    acts_as_image_file('/tmp/acts_as_image_file_tests/r1',
+                       :rel_root => '/http/alias' )
   end
 
   class ImageFile < ActiveRecord::Base
-    acts_as_image_file('/tmp/acts_as_image_file_tests/r1' ,
+    acts_as_image_file('/tmp/acts_as_image_file_tests/r2' ,
                        :name_field => :image_name)
   end
 
@@ -26,39 +35,76 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
     Tag.delete_all
     TaggedImage.delete_all
 
-    FileUtils.rm_rf '/tmp/acts_as_image_file_tests'
-    FileUtils.mkdir_p '/tmp/acts_as_image_file_tests'
+    # Delete all images but preserve image db directory structure.
+    # Image db creates directory structure at initialize time only.
+
+    Find.find('/tmp/acts_as_image_file_tests/') do |f|
+      File.unlink(f) if File.file?(f)
+    end
+
   end
 
-  test "schema loads correctly" do
+  test "(000) test images are available" do
+    assert File.exists?(test_image1)
+  end
+
+  test "(000) schema loads correctly" do
     assert_equal [],Image.all
     assert_equal [],ImageFile.all
     assert_equal [],Tag.all
     assert_equal [],TaggedImage.all
   end
 
-  test "changing name of an image" do
+  test "(001) we can access the image db from an instance" do
+    assert_equal '/tmp/acts_as_image_file_tests/r1',Image.db.root
     i = Image.new
-    i.name = 'foo.jpg'
-    i.save!
-    i.name = 'bar.jpg'
-    i.save!
-    p i.url
+    assert_equal '/tmp/acts_as_image_file_tests/r1',i.db.root
   end
 
-  test "we can access the image db from an instance" do
+  test "storing image" do
     i = Image.new
-    i.name = 'foo.jpg'
-    i.save!
-    assert_equal '/tmp/acts_as_image_file_tests/r1',i.db.root
-    p i.url
+    i.store(test_image1)
+    nm = File.join(i.db.root,'originals',File.basename(test_image1))
+    assert File.exists?(nm)
+    assert_equal File.basename(test_image1),i.name
   end
+
+  test "accessing url and path" do
+    i = Image.new
+    i.store(test_image1)
+    assert_equal File.join('/','http','alias','originals',
+                           File.basename(test_image1)),i.url
+    assert_equal File.join(Image.db.root,'originals',
+                           File.basename(test_image1)),i.path
+  end
+
+  test "autogeneration of sized images using url and path" do
+    i = Image.new
+    i.store(test_image1)
+    nm = i.url(:width => 60)
+    assert_equal File.join('/','http','alias','w','60',
+                           File.basename(test_image1)),nm
+  end
+
+  test "changing name of an image" do
+    nm = File.join(Image.db.root,'originals',File.basename(test_image1))
+    nm2 = File.join(Image.db.root,'originals','bar.jpg')
+    i = Image.new
+    i.store test_image1
+    assert File.exists?(nm)
+    assert !File.exists?(nm2)
+    i.name = 'bar.jpg'
+    i.save!
+    assert !File.exists?(nm)
+    assert File.exists?(nm2)
+  end
+
 
   test "we can specify the name field in the database" do
     i = ImageFile.new
     i.image_name = 'foo.jpg'
     i.save!
-    assert_equal '/tmp/acts_as_image_file_tests/r1',i.db.root
+    assert_equal '/tmp/acts_as_image_file_tests/r2',i.db.root
     p i.url
   end
 

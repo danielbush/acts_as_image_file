@@ -1,3 +1,7 @@
+# This file is part of Acts as image file, a ruby on rails plugin.
+# Copyright (C) 2010 Daniel Bush
+# This program is distributed under the terms of the MIT License.
+# See the MIT LICENSE file for details.
 
 module ActsAsImageFile
 
@@ -49,6 +53,7 @@ module ActsAsImageFile
     def acts_as_image_file root , params=nil
 
       @aaif = params.nil? ? {:name_field => :name} : params
+      @aaif[:name_field] = :name unless @aaif[:name_field]
       @db = ImageDb::DB.new(root,@aaif[:rel_root])
       @db.hooks = @aaif[:hooks]
 
@@ -77,7 +82,11 @@ module ActsAsImageFile
         # Store an original image...
 
         def store filepath,params=nil
+          return false unless File.exists?(filepath)
+          #raise "File doesn't exist" unless File.exists?(filepath)
           db.store filepath,params
+          self[aaif[:name_field]] = File.basename(filepath)
+          self.save
         end
 
         # Retrieve url for original image (resolve to rel_root)...
@@ -89,17 +98,19 @@ module ActsAsImageFile
         # Retrieve image path...
 
         def path params=nil
+          params ||= {}
           db.fetch(self.send(aaif[:name_field]) ,
                    params.merge(:absolute => true))
         end
 
-        # Rename images if name is changed.
+        # Rename images in image db if name field value (image name)
+        # is changed.
         # 
         # If image is new or name not set then don't do anything.
 
         def after_save
           return true unless db
-          r = self.changes[aaif[:name_field]]
+          r = self.changes[aaif[:name_field].to_s]
           return true unless r
           old,new = r
           unless old.nil?
