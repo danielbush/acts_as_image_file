@@ -1,0 +1,8 @@
+
+[25-Jun-2010]
+- any other methods for analysing, taking stock of image db vs the AR db?
+  - originals in ImageDB that are unassigned
+    - file modify times
+  - images in AR that don't have an original
+   
+
