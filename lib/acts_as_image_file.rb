@@ -57,11 +57,6 @@ module ActsAsImageFile
       @db = ImageDb::DB.new(root,@aaif[:rel_root])
       @db.hooks = @aaif[:hooks]
 
-      # Name field should be unique and not null...
-
-      send :validates_uniqueness_of , @aaif[:name_field]
-      send :validates_presence_of , @aaif[:name_field]
-
       # Create some instance methods for this AR class:
 
       self.module_eval do
@@ -80,27 +75,59 @@ module ActsAsImageFile
         end
 
         # Store an original image...
+        #
+        # We try to save the image name in the active record
+        # first.  If this fails we stop.
+        # If it succeeds, we store the image in the image db.
+        # It's recommended you apply at least a validates_uniqueness_of
+        # in the image name field of the active record.
 
         def store filepath,params=nil
           return false unless File.exists?(filepath)
+          params ||= {}
           #raise "File doesn't exist" unless File.exists?(filepath)
-          db.store filepath,params
-          self[aaif[:name_field]] = File.basename(filepath)
-          self.save
+          name = ((params && params[:name]) ?
+                  params[:name] : File.basename(filepath))
+          old_name = self[aaif[:name_field]]
+          self[aaif[:name_field]] = name
+          return false unless self.save
+          nm = db.store(filepath,params.merge(:force => true,:name => name))
+            # This could throw an error and abort the whole
+            # operation.
+          return true
+        rescue
+          return false
+        end
+
+        def store! filepath,params=nil
+          raise "Can't store image" if !store(filepath,params)
         end
 
         # Retrieve url for original image (resolve to rel_root)...
 
         def url params=nil
+          params ||= {}
+          name = self.send(aaif[:name_field])
           db.fetch self.send(aaif[:name_field]) , params
+          if params[:not_found]
+            db.fetch(name,params)
+          else
+            db.resolve(name,params)
+          end
         end
 
         # Retrieve image path...
 
         def path params=nil
           params ||= {}
-          db.fetch(self.send(aaif[:name_field]) ,
-                   params.merge(:absolute => true))
+          params = params.merge(:absolute => true)
+          name = self.send(aaif[:name_field])
+          if params[:not_found]
+            # Fetch uses not_found logic
+            db.fetch(name,params)
+          else
+            db.absolute(name,params)
+          end
         end
 
         # Rename images in image db if name field value (image name)
@@ -116,6 +143,7 @@ module ActsAsImageFile
           unless old.nil?
             db.rename(old,new,:force => true) if db
           end
+          return true
         end
 
         # Do nothing.  Up to user if they want to destroy images.
@@ -127,8 +155,8 @@ module ActsAsImageFile
         # Check original image file exists.
 
         def file_exists? params=nil
-          r = db.fetch(self.send(aaif[:name_field]) , params)
-          r.nil? ? false : true
+          File.exists?(db.absolute(self.send(aaif[:name_field]),
+                                   params))
         end
 
       end # module_eval
