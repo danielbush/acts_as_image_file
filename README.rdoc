@@ -40,6 +40,24 @@ Issues/requirements
   modified/reimplemented to use RMagick
 
 
+== Obtaining
+
+* clone from github
+
+    git pull git://github.com/danielbush/acts_as_image_file.git
+
+* clone the github submodules
+  
+    cd /path/to/acts_as_image_file
+    git submodule update --init
+
+* This should clone and set up image_db within acts_as_image_file
+
+* Run tests to make sure everything is working:
+
+    cd /path/to/acts_as_image_file
+    rake
+
 == Important
 
 Make sure you cd to the plugin directory and run 'rake' to run
