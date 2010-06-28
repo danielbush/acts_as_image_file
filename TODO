@@ -1,8 +1,15 @@
 
+[27-Jun-2010]
+* rename db method to image_db or image_store so that it is more
+  specific to what it describes and less likely to clash with a
+  prexisting name.
+* add some sort of logging or validation logic for image-db specific
+  errors
+  * codify errors
 [25-Jun-2010]
-- any other methods for analysing, taking stock of image db vs the AR db?
-  - originals in ImageDB that are unassigned
-    - file modify times
-  - images in AR that don't have an original
+* any other methods for analysing, taking stock of image db vs the AR db?
+  * originals in ImageDB that are unassigned
+    * file modify times
+  * images in AR that don't have an original
    
 
