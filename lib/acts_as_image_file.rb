@@ -108,12 +108,12 @@ module ActsAsImageFile
         def url params=nil
           params ||= {}
           name = self.send(aaif[:name_field])
-          db.fetch self.send(aaif[:name_field]) , params
-          if params[:not_found]
-            db.fetch(name,params)
-          else
-            db.resolve(name,params)
+          nm = db.fetch(name,params)
+          if nm.nil?
+            return nil if params[:resize] == false
+            return db.resolve(name,params)
           end
+          return nm
         end
 
         # Retrieve image path...
@@ -122,12 +122,12 @@ module ActsAsImageFile
           params ||= {}
           params = params.merge(:absolute => true)
           name = self.send(aaif[:name_field])
-          if params[:not_found]
-            # Fetch uses not_found logic
-            db.fetch(name,params)
-          else
-            db.absolute(name,params)
+          nm = db.fetch(name,params)
+          if nm.nil?
+            return nil if params[:resize] == false
+            return db.absolute(name,params)
           end
+          return nm
         end
 
         # Rename images in image db if name field value (image name)
@@ -144,12 +144,6 @@ module ActsAsImageFile
             db.rename(old,new,:force => true) if db
           end
           return true
-        end
-
-        # Do nothing.  Up to user if they want to destroy images.
-
-        def after_destroy
-          #db.delete self.name
         end
 
         # Check original image file exists.

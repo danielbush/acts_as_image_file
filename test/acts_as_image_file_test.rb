@@ -10,6 +10,11 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
 
   load_schema
 
+  ROOT = '/tmp/acts_as_image_file_tests/r1'
+    # Same as Image.db.root or Image.new.db.root
+  ROOT2 = '/tmp/acts_as_image_file_tests/r2'
+  ALIAS = '/http/alias'
+
   def test_image1
     File.join(File.expand_path(File.dirname(__FILE__)),
               '..','lib','image_db','test','test_data',
@@ -17,21 +22,18 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
   end
 
   class Image < ActiveRecord::Base
-    acts_as_image_file('/tmp/acts_as_image_file_tests/r1',
-                       :rel_root => '/http/alias' )
+    acts_as_image_file(ROOT,:rel_root => ALIAS )
   end
 
   # Like Image but with validations.
 
   class Image2 < ActiveRecord::Base
-    acts_as_image_file('/tmp/acts_as_image_file_tests/r1',
-                       :rel_root => '/http/alias' )
+    acts_as_image_file(ROOT,:rel_root => ALIAS )
     validates_uniqueness_of :name
   end
 
   class ImageFile < ActiveRecord::Base
-    acts_as_image_file('/tmp/acts_as_image_file_tests/r2' ,
-                       :name_field => :image_name)
+    acts_as_image_file(ROOT2 , :name_field => :image_name)
   end
 
   class Tag < ActiveRecord::Base
@@ -140,7 +142,7 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
   #------------------------------------------------------------------
   # url and path
 
-  test "accessing url and path" do
+  test "accessing url and path of original images" do
     i = Image.new
     i.store(test_image1)
     assert_equal File.join('/','http','alias','originals',
@@ -152,10 +154,18 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
   test "autogeneration of sized images using url and path" do
     i = Image.new
     i.store(test_image1)
+#debugger
+    assert !File.exists?(File.join(i.db.root,'w','60',
+                                   File.basename(test_image1)))
     nm = i.url(:width => 60)
     assert_equal File.join('/','http','alias','w','60',
                            File.basename(test_image1)),nm
     assert File.exists?(File.join(i.db.root,'w','60',
+                                  File.basename(test_image1)))
+    nm = i.path(:width => 61)
+    assert_equal File.join(i.db.root,'w','61',
+                           File.basename(test_image1)),nm
+    assert File.exists?(File.join(i.db.root,'w','61',
                                   File.basename(test_image1)))
   end
 
@@ -163,21 +173,59 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
     i = Image.new
     i.name = 'foo.jpg'
     i.save!
-    assert /foo.jpg/===i.url
-    assert /foo.jpg/===i.path
 
-    # not_found doesn't exist, return nil:
-    assert_nil i.url(:not_found => 'image-2.jpg')
-    assert_nil i.path(:not_found => 'image-2.jpg')
+    # Return path even if it doesn't exist:
+    assert /#{ALIAS}.*foo.jpg/===i.url
+    assert /#{ROOT}.*foo.jpg/===i.path
+
+    # not_found doesn't exist, still return not_found
+    assert /#{ALIAS}.*image-2.jpg/ === i.url(:not_found => 'image-2.jpg')
+    assert /#{ROOT}.*image-2.jpg/ === i.path(:not_found => 'image-2.jpg')
 
     # not_found exists, return not found:
     i.store(test_image1,:name => 'image-2.jpg')
-    assert /image-2.jpg/===i.url(:not_found => 'image-2.jpg')
-    assert /image-2.jpg/===i.path(:not_found => 'image-2.jpg')
+    assert /#{ALIAS}.*image-2.jpg/===i.url(:not_found => 'image-2.jpg')
+    assert /#{ROOT}.*image-2.jpg/===i.path(:not_found => 'image-2.jpg')
     
-    # autogeneration of resized not_found images
-    assert /image-2.jpg/===i.url(:not_found => 'image-2.jpg',:width => 67)
+  end
+
+  test "ability to not autogenerate sized images" do
+    j = Image.new
+    j.store(test_image1,:name => 'image-1.jpg')
+
+    i = Image.new
+    i.name = 'foo.jpg'
+    i.save!
+    i.store(test_image1,:name => 'image-2.jpg')
+    assert_nil i.url(:width => 71,:resize => false)
+    assert_nil i.path(:width => 71,:resize => false)
+    assert /#{ALIAS}.*image-1.jpg/===i.url(:width => 71,
+                                 :resize => false,
+                                 :not_found => 'image-1.jpg')
+    assert /#{ROOT}.*image-1.jpg/===i.path(:width => 71,
+                                  :resize => false,
+                                  :not_found => 'image-1.jpg')
+
+    # Use global settings:
+    Image.db.use_not_found = true
+    Image.db.not_found_image = 'image-1.jpg'
+    assert /#{ALIAS}.*image-1.jpg/===i.url(:width => 71,:resize => false)
+    assert /#{ROOT}.*image-1.jpg/===i.path(:width => 71,:resize => false)
+  end
+
+  test "autogeneration of sized not_found image" do
+    i = Image.new
+    i.name = 'foo.jpg'
+    i.save!
+    i.store(test_image1,:name => 'image-2.jpg')
+
+    assert /#{ALIAS}.*image-2.jpg/===i.url(:not_found => 'image-2.jpg',
+                                             :width => 67)
     assert File.exists?(File.join(i.db.root,'w','67','image-2.jpg'))
+
+    assert /#{ROOT}.*image-2.jpg/===i.path(:not_found => 'image-2.jpg',
+                                             :width => 69)
+    assert File.exists?(File.join(i.db.root,'w','69','image-2.jpg'))
   end
 
   #------------------------------------------------------------------
