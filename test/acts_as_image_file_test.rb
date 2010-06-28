@@ -1,6 +1,6 @@
 $MYDBG=false
-#require 'rubygems'
-#require 'ruby-debug'
+require 'rubygems'
+require 'ruby-debug'
 require 'test_helper'
 require 'fileutils'
 require 'find'
@@ -34,6 +34,12 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
 
   class ImageFile < ActiveRecord::Base
     acts_as_image_file(ROOT2 , :name_field => :image_name)
+  end
+
+  class ImageFile2 < ActiveRecord::Base
+    acts_as_image_file(ROOT)
+    db.use_not_found = true
+    db.not_found_image = 'image-1.jpg'
   end
 
   class Tag < ActiveRecord::Base
@@ -226,6 +232,40 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
     assert /#{ROOT}.*image-2.jpg/===i.path(:not_found => 'image-2.jpg',
                                              :width => 69)
     assert File.exists?(File.join(i.db.root,'w','69','image-2.jpg'))
+  end
+
+  test "not found being set at class level" do
+    assert_equal 'image-1.jpg',ImageFile2.db.not_found_image
+    assert ImageFile2.db.use_not_found
+    i = ImageFile2.new
+    i.name = 'foo.jpg'
+    i.save!
+    nm = i.url
+    assert_equal File.join(i.db.root,'originals','image-1.jpg'),nm
+  end
+
+  test "overriding global not_found to not use it" do
+    assert ImageFile2.db.use_not_found
+    i = ImageFile2.new
+    i.name = 'foo.jpg'
+    i.save!
+    nm = i.url(:not_found => nil)
+    assert_equal File.join(i.db.root,'originals','foo.jpg'),nm
+    nm = i.url(:width => 41,:not_found => nil)
+    assert_equal File.join(i.db.root,'w','41','foo.jpg'),nm
+  end
+
+  test ":resize option doesn't affect not-found resizing" do
+    assert_equal 'image-1.jpg',ImageFile2.db.not_found_image
+    assert ImageFile2.db.use_not_found
+    j = ImageFile2.new
+    j.store(test_image1,:name => 'image-1.jpg')  # not-found image
+
+    i = ImageFile2.new
+    i.store(test_image1,:name => 'image-2.jpg')
+    nm = i.url(:resize => false,:width => 43)
+    assert_equal File.join(i.db.root,'w','43','image-1.jpg'),nm
+    assert File.exists?(File.join(i.db.root,'w','43','image-1.jpg'))
   end
 
   #------------------------------------------------------------------
