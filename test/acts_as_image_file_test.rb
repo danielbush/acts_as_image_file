@@ -1,6 +1,6 @@
 $MYDBG=false
-require 'rubygems'
-require 'ruby-debug'
+#require 'rubygems'
+#require 'ruby-debug'
 require 'test_helper'
 require 'fileutils'
 require 'find'
