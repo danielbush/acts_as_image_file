@@ -318,5 +318,16 @@ class ActsAsImageFileTest < ActiveSupport::TestCase
     assert i.file_exists?(:width => 68) == true
   end
 
+  #------------------------------------------------------------------
+  # test behaviour with new records
+
+  test "new record should return not-found if not-found is enabled" do
+    i = Image.new
+    assert_nil i.url
+    assert /foo.jpg/===i.url(:not_found => 'foo.jpg')
+    i = ImageFile2.new
+    assert /image-1.jpg/===i.url
+    assert /foo.jpg/===i.url(:not_found => 'foo.jpg')
+  end
 
 end
