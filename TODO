@@ -1,4 +1,6 @@
 
+[30-Jun-2010]
+* add functionality for uploading images
 [27-Jun-2010]
 * rename db method to image_db or image_store so that it is more
   specific to what it describes and less likely to clash with a
