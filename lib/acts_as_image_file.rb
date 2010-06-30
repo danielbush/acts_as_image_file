@@ -54,7 +54,7 @@ module ActsAsImageFile
 
       @aaif = params.nil? ? {:name_field => :name} : params
       @aaif[:name_field] = :name unless @aaif[:name_field]
-      @db = ImageDb::DB.new(root,@aaif[:rel_root])
+      @db = DLBImageUtils::ImageDb::DB.new(root,@aaif[:rel_root])
       @db.hooks = @aaif[:hooks]
 
       # Create some instance methods for this AR class:
